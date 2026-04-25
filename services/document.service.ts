@@ -1,10 +1,8 @@
 import { api } from "@/lib/api"
+import type { Document as ApiDocument } from "@/types/api"
 
-export interface DocumentItem {
-  id: string
+export interface DocumentItem extends ApiDocument {
   userId: string
-  fileName: string
-  createdAt: string
   updatedAt?: string
   [key: string]: unknown
 }
@@ -12,8 +10,8 @@ export interface DocumentItem {
 export interface DocumentFilters {
   page?: number
   limit?: number
-  startCreationDate?: string
-  endCreationDate?: string
+  dateCreationDebut?: string
+  dateCreationFin?: string
   search?: string
 }
 
@@ -25,11 +23,7 @@ export async function uploadDocument(file: File): Promise<DocumentItem> {
   const formData = new FormData()
   formData.append("file", file)
 
-  const { data } = await api.post<DocumentItem>("documents", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  })
+  const { data } = await api.post<DocumentItem>("documents", formData)
 
   return data
 }
@@ -38,8 +32,16 @@ export async function getUserDocuments(
   userId: string,
   filters: DocumentFilters = {},
 ): Promise<DocumentItem[]> {
+  const params = {
+    page: filters.page,
+    limit: filters.limit,
+    dateCreationDebut: filters.dateCreationDebut,
+    dateCreationFin: filters.dateCreationFin,
+    search: filters.search,
+  }
+
   const { data } = await api.get<DocumentItem[]>(`documents/${userId}`, {
-    params: filters,
+    params,
   })
   return data
 }

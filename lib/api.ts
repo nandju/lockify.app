@@ -6,7 +6,6 @@ export const api = axios.create({
   baseURL: "https://lockify-project.vercel.app/api/",
   timeout: 15000,
   headers: {
-    "Content-Type": "application/json",
     Accept: "application/json",
   },
 })
@@ -32,6 +31,9 @@ api.interceptors.response.use(
 
     if (status === 401) {
       removeToken()
+      if (typeof window !== "undefined") {
+        window.location.href = "/login"
+      }
     }
 
     return Promise.reject(new ApiError(message, status, error.response?.data))

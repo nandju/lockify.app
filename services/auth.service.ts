@@ -1,15 +1,13 @@
 import { api } from "@/lib/api"
 import { setToken, removeToken } from "@/lib/token"
+import type { User as ApiUser } from "@/types/api"
 
 export interface LoginPayload {
   email: string
   password: string
 }
 
-export interface AuthUser {
-  id: string
-  email: string
-  firstName?: string
+export interface AuthUser extends ApiUser {
   lastName?: string
   [key: string]: unknown
 }
@@ -41,6 +39,7 @@ export async function login(payload: LoginPayload): Promise<AuthUser | null> {
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
+    // TODO: verify /users/me exists in the API; if not replace with /users/{id}
     const { data } = await api.get<AuthUser>("users/me")
     return data
   } catch {

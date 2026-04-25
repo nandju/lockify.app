@@ -14,11 +14,10 @@ export class ApiError extends Error {
 
 export function extractErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    const responseMessage =
-      (error.response?.data as { message?: string } | undefined)?.message ??
-      error.response?.statusText
-
-    return responseMessage || error.message || "Request failed"
+    return (
+      (error.response?.data as { message?: string } | undefined)?.message ||
+      "API Error"
+    )
   }
 
   if (error instanceof Error) {
