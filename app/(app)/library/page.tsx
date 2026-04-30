@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import { 
   Search, 
@@ -38,7 +38,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { 
-  useApp, 
   formatFileSize, 
   formatDate, 
   getCategoryLabel, 
@@ -46,6 +45,8 @@ import {
   type Document 
 } from "@/lib/context"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/hooks/useAuth"
+import { useDocuments } from "@/hooks/useDocuments"
 
 type ViewMode = "grid" | "list"
 type SortField = "name" | "date" | "size" | "category"
@@ -64,7 +65,8 @@ const categories: Array<{ value: Document["category"] | "all"; label: string }> 
 ]
 
 export default function LibraryPage() {
-  const { documents, folders, toggleFavorite, deleteDocument } = useApp()
+  const { user } = useAuth()
+  const { documents, fetchDocuments, loading, delete: deleteDocument } = useDocuments()
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<Document["category"] | "all">("all")
@@ -73,8 +75,36 @@ export default function LibraryPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
   const [showFilters, setShowFilters] = useState(false)
 
+  // Adapter to convert DocumentItem to Document type
+  const adaptDocumentItem = (item: any): Document => ({
+    id: item.id,
+    name: item.fileName || item.name || 'Untitled',
+    category: (item.category as Document["category"]) || "other",
+    tags: (item.tags as string[]) || [],
+    fileType: (item.fileType as Document["fileType"]) || "pdf",
+    size: (item.size as number) || 0,
+    createdAt: new Date(item.createdAt || Date.now()),
+    updatedAt: new Date(item.updatedAt || item.createdAt || Date.now()),
+    expiresAt: item.expiresAt ? new Date(item.expiresAt) : undefined,
+    isFavorite: (item.isFavorite as boolean) || false,
+    thumbnailUrl: item.thumbnailUrl,
+  })
+
+  const safeDocuments = (documents || []).map(adaptDocumentItem)
+  const folders: Array<{ id: string; name: string; color: string; documentCount: number }> = [] // TODO: Implement folders API
+
+  useEffect(() => {
+    if (user?.id) {
+      void fetchDocuments(user.id)
+    }
+  }, [fetchDocuments, user?.id])
+
+  const toggleFavorite = (id: string) => {
+    // TODO: Implement favorite toggle API
+  }
+
   const filteredDocuments = useMemo(() => {
-    let filtered = [...documents]
+    let filtered = [...safeDocuments]
 
     // Search filter
     if (searchQuery) {
@@ -82,7 +112,7 @@ export default function LibraryPage() {
       filtered = filtered.filter(
         doc =>
           doc.name.toLowerCase().includes(query) ||
-          doc.tags.some(tag => tag.toLowerCase().includes(query)) ||
+          (doc.tags || []).some((tag: string) => tag.toLowerCase().includes(query)) ||
           getCategoryLabel(doc.category).toLowerCase().includes(query)
       )
     }
@@ -100,7 +130,7 @@ export default function LibraryPage() {
           comparison = a.name.localeCompare(b.name)
           break
         case "date":
-          comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          comparison = new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()
           break
         case "size":
           comparison = b.size - a.size
@@ -113,7 +143,7 @@ export default function LibraryPage() {
     })
 
     return filtered
-  }, [documents, searchQuery, selectedCategory, sortField, sortOrder])
+  }, [safeDocuments, searchQuery, selectedCategory, sortField, sortOrder])
 
   const hasActiveFilters = searchQuery || selectedCategory !== "all"
 
@@ -122,13 +152,15 @@ export default function LibraryPage() {
     setSelectedCategory("all")
   }
 
+  if (loading) return <p>Loading...</p>
+
   return (
     <div className="container mx-auto px-4 py-6">
       {/* Header */}
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground md:text-3xl">Bibliothèque</h1>
-          <p className="text-muted-foreground">{documents.length} documents</p>
+          <p className="text-muted-foreground">{safeDocuments.length || 0} documents</p>
         </div>
         <Link href="/import">
           <Button className="gap-2">
@@ -152,7 +184,7 @@ export default function LibraryPage() {
           <Folder className="h-4 w-4" />
           Tous
         </button>
-        {folders.map(folder => (
+        {folders.map((folder: any) => (
           <button
             key={folder.id}
             onClick={() => setSelectedFolder(folder.id)}

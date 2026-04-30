@@ -89,174 +89,8 @@ interface AppContextType extends AppState {
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
 
-// Mock data
-const mockUser: User = {
-  id: "1",
-  email: "marie.dupont@email.com",
-  name: "Marie Dupont",
-  isPremium: true,
-  storageUsed: 2.4 * 1024 * 1024 * 1024, // 2.4 GB
-  storageLimit: 10 * 1024 * 1024 * 1024, // 10 GB
-  twoFactorEnabled: true,
-  biometricsEnabled: false,
-  pinEnabled: true,
-}
-
-const mockDocuments: Document[] = [
-  {
-    id: "1",
-    name: "Carte d'identité",
-    category: "identity",
-    tags: ["officiel", "personnel"],
-    fileType: "pdf",
-    size: 1.2 * 1024 * 1024,
-    createdAt: new Date("2024-01-15"),
-    updatedAt: new Date("2024-01-15"),
-    expiresAt: new Date("2029-01-15"),
-    isFavorite: true,
-  },
-  {
-    id: "2",
-    name: "Passeport",
-    category: "identity",
-    tags: ["voyage", "officiel"],
-    fileType: "pdf",
-    size: 2.5 * 1024 * 1024,
-    createdAt: new Date("2024-02-20"),
-    updatedAt: new Date("2024-02-20"),
-    expiresAt: new Date("2026-04-10"),
-    isFavorite: true,
-  },
-  {
-    id: "3",
-    name: "Attestation de mutuelle",
-    category: "health",
-    tags: ["santé", "assurance"],
-    fileType: "pdf",
-    size: 0.8 * 1024 * 1024,
-    createdAt: new Date("2024-03-01"),
-    updatedAt: new Date("2024-03-01"),
-    expiresAt: new Date("2024-12-31"),
-    isFavorite: false,
-  },
-  {
-    id: "4",
-    name: "Fiche de paie - Mars 2024",
-    category: "work",
-    tags: ["salaire", "comptabilité"],
-    fileType: "pdf",
-    size: 0.5 * 1024 * 1024,
-    createdAt: new Date("2024-03-31"),
-    updatedAt: new Date("2024-03-31"),
-    isFavorite: false,
-  },
-  {
-    id: "5",
-    name: "Contrat de bail",
-    category: "housing",
-    tags: ["logement", "contrat"],
-    fileType: "pdf",
-    size: 3.2 * 1024 * 1024,
-    createdAt: new Date("2023-09-01"),
-    updatedAt: new Date("2023-09-01"),
-    expiresAt: new Date("2026-08-31"),
-    isFavorite: true,
-  },
-  {
-    id: "6",
-    name: "Relevé bancaire - Février",
-    category: "finance",
-    tags: ["banque", "mensuel"],
-    fileType: "pdf",
-    size: 0.3 * 1024 * 1024,
-    createdAt: new Date("2024-03-05"),
-    updatedAt: new Date("2024-03-05"),
-    isFavorite: false,
-  },
-  {
-    id: "7",
-    name: "Acte de naissance",
-    category: "family",
-    tags: ["officiel", "famille"],
-    fileType: "jpg",
-    size: 1.8 * 1024 * 1024,
-    createdAt: new Date("2024-01-10"),
-    updatedAt: new Date("2024-01-10"),
-    isFavorite: false,
-  },
-  {
-    id: "8",
-    name: "Contrat de travail",
-    category: "legal",
-    tags: ["contrat", "travail"],
-    fileType: "pdf",
-    size: 1.1 * 1024 * 1024,
-    createdAt: new Date("2023-06-15"),
-    updatedAt: new Date("2023-06-15"),
-    isFavorite: true,
-  },
-]
-
-const mockFolders: Folder[] = [
-  { id: "1", name: "Documents importants", parentId: null, color: "#1565C0", documentCount: 5 },
-  { id: "2", name: "Travail", parentId: null, color: "#00BCD4", documentCount: 8 },
-  { id: "3", name: "Santé", parentId: null, color: "#00C853", documentCount: 3 },
-  { id: "4", name: "Logement", parentId: null, color: "#FFB300", documentCount: 4 },
-]
-
-const mockShares: Share[] = [
-  {
-    id: "1",
-    documentId: "5",
-    documentName: "Contrat de bail",
-    recipientEmail: "proprietaire@email.com",
-    permissions: "read",
-    expiresAt: new Date("2024-04-30"),
-    createdAt: new Date("2024-03-15"),
-    accessCount: 3,
-    isActive: true,
-  },
-  {
-    id: "2",
-    documentId: "4",
-    documentName: "Fiche de paie - Mars 2024",
-    linkUrl: "https://lockify.app/share/abc123",
-    permissions: "download",
-    expiresAt: new Date("2024-04-15"),
-    createdAt: new Date("2024-03-20"),
-    accessCount: 1,
-    isActive: true,
-  },
-]
-
-const mockNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "expiration",
-    title: "Document bientôt expiré",
-    message: "Votre passeport expire dans 30 jours",
-    documentId: "2",
-    isRead: false,
-    createdAt: new Date("2024-03-25"),
-  },
-  {
-    id: "2",
-    type: "share",
-    title: "Accès au document",
-    message: "proprietaire@email.com a consulté votre Contrat de bail",
-    documentId: "5",
-    isRead: false,
-    createdAt: new Date("2024-03-24"),
-  },
-  {
-    id: "3",
-    type: "security",
-    title: "Nouvelle connexion",
-    message: "Connexion depuis un nouvel appareil détectée",
-    isRead: true,
-    createdAt: new Date("2024-03-23"),
-  },
-]
+// TODO: Replace with proper API integration
+// Mock data removed - use proper API calls through hooks instead
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>({
@@ -286,12 +120,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (savedAuth === "true") {
       setState(prev => ({
         ...prev,
-        user: mockUser,
         isAuthenticated: true,
-        documents: mockDocuments,
-        folders: mockFolders,
-        shares: mockShares,
-        notifications: mockNotifications,
         isDarkMode: isDark,
         isHydrating: false,
       }))
@@ -301,19 +130,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Simulate API call
+    // TODO: Replace with actual API call using auth service
     await new Promise(resolve => setTimeout(resolve, 1000))
     
     if (email && password) {
       localStorage.setItem("lockify-auth", "true")
       setState(prev => ({
         ...prev,
-        user: mockUser,
         isAuthenticated: true,
-        documents: mockDocuments,
-        folders: mockFolders,
-        shares: mockShares,
-        notifications: mockNotifications,
       }))
       return true
     }

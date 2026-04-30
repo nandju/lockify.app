@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { 
@@ -55,7 +55,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { useApp, formatDate, getCategoryLabel, getCategoryColor, type Share } from "@/lib/context"
+import { formatDate, getCategoryLabel, getCategoryColor, type Share } from "@/lib/context"
+import { useAuth } from "@/hooks/useAuth"
+import { useDocuments } from "@/hooks/useDocuments"
 import { cn } from "@/lib/utils"
 
 const expirationOptions = [
@@ -69,7 +71,9 @@ export default function SharingPage() {
   const searchParams = useSearchParams()
   const preselectedDoc = searchParams.get("document")
   
-  const { documents, shares, createShare, revokeShare } = useApp()
+  const { user } = useAuth()
+  const { documents, fetchDocuments, loading } = useDocuments()
+  const [shares, setShares] = useState<Share[]>([])
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(!!preselectedDoc)
   const [selectedDocument, setSelectedDocument] = useState(preselectedDoc || "")
@@ -81,13 +85,50 @@ export default function SharingPage() {
   const [shareToRevoke, setShareToRevoke] = useState<string | null>(null)
   const [createdShareLink, setCreatedShareLink] = useState<string | null>(null)
 
-  const activeShares = useMemo(() => shares.filter(s => s.isActive), [shares])
-  const expiredShares = useMemo(() => shares.filter(s => !s.isActive || new Date(s.expiresAt) < new Date()), [shares])
+  // Adapter for documents
+  const adaptDocumentItem = (item: any) => ({
+    id: item.id,
+    name: item.fileName || item.name || 'Untitled',
+    category: (item.category as any) || "other",
+    tags: (item.tags as string[]) || [],
+    fileType: (item.fileType as any) || "pdf",
+    size: (item.size as number) || 0,
+    createdAt: new Date(item.createdAt || Date.now()),
+    updatedAt: new Date(item.updatedAt || item.createdAt || Date.now()),
+    expiresAt: item.expiresAt ? new Date(item.expiresAt) : undefined,
+    isFavorite: (item.isFavorite as boolean) || false,
+    thumbnailUrl: item.thumbnailUrl,
+  })
+
+  const safeDocuments = (documents || []).map(adaptDocumentItem)
+
+  const activeShares = useMemo(() => shares.filter((s: Share) => s.isActive), [shares])
+  const expiredShares = useMemo(() => shares.filter((s: Share) => !s.isActive || new Date(s.expiresAt) < new Date()), [shares])
+
+  useEffect(() => {
+    if (user?.id) {
+      void fetchDocuments(user.id)
+    }
+  }, [fetchDocuments, user?.id])
+
+  const createShare = (share: Omit<Share, "id" | "createdAt" | "accessCount">) => {
+    const newShare: Share = {
+      ...share,
+      id: String(Date.now()),
+      createdAt: new Date(),
+      accessCount: 0,
+    }
+    setShares(prev => [newShare, ...prev])
+  }
+
+  const revokeShare = (id: string) => {
+    setShares(prev => prev.map(s => s.id === id ? { ...s, isActive: false } : s))
+  }
 
   const handleCreateShare = () => {
     if (!selectedDocument) return
 
-    const doc = documents.find(d => d.id === selectedDocument)
+    const doc = safeDocuments.find(d => d.id === selectedDocument)
     if (!doc) return
 
     const expirationDate = new Date()
@@ -142,7 +183,9 @@ export default function SharingPage() {
     setShareToRevoke(null)
   }
 
-  const selectedDoc = documents.find(d => d.id === selectedDocument)
+  if (loading) return <p>Loading...</p>
+
+  const selectedDoc = safeDocuments.find(d => d.id === selectedDocument)
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -176,7 +219,7 @@ export default function SharingPage() {
                     <SelectValue placeholder="Sélectionner un document" />
                   </SelectTrigger>
                   <SelectContent>
-                    {documents.map(doc => (
+                    {safeDocuments.map(doc => (
                       <SelectItem key={doc.id} value={doc.id}>
                         <div className="flex items-center gap-2">
                           <FileText className="h-4 w-4" style={{ color: getCategoryColor(doc.category) }} />

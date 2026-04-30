@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { 
   Shield, 
   Smartphone, 
@@ -44,8 +44,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
-import { useApp, formatDate } from "@/lib/context"
+import { formatDate } from "@/lib/context"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/hooks/useAuth"
 
 interface Session {
   id: string
@@ -57,36 +58,6 @@ interface Session {
   isCurrent: boolean
 }
 
-const mockSessions: Session[] = [
-  {
-    id: "1",
-    device: "iPhone 15 Pro",
-    browser: "Safari Mobile",
-    location: "Paris, France",
-    ip: "192.168.1.***",
-    lastActive: new Date(),
-    isCurrent: true,
-  },
-  {
-    id: "2",
-    device: "MacBook Pro",
-    browser: "Chrome",
-    location: "Paris, France",
-    ip: "192.168.1.***",
-    lastActive: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    isCurrent: false,
-  },
-  {
-    id: "3",
-    device: "Windows PC",
-    browser: "Firefox",
-    location: "Lyon, France",
-    ip: "10.0.0.***",
-    lastActive: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    isCurrent: false,
-  },
-]
-
 interface AccessLog {
   id: string
   action: string
@@ -96,47 +67,14 @@ interface AccessLog {
   success: boolean
 }
 
-const mockAccessLogs: AccessLog[] = [
-  {
-    id: "1",
-    action: "Connexion réussie",
-    device: "iPhone 15 Pro",
-    location: "Paris, France",
-    timestamp: new Date(),
-    success: true,
-  },
-  {
-    id: "2",
-    action: "Document consulté",
-    device: "iPhone 15 Pro",
-    location: "Paris, France",
-    timestamp: new Date(Date.now() - 30 * 60 * 1000),
-    success: true,
-  },
-  {
-    id: "3",
-    action: "Partage créé",
-    device: "MacBook Pro",
-    location: "Paris, France",
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    success: true,
-  },
-  {
-    id: "4",
-    action: "Tentative de connexion échouée",
-    device: "Appareil inconnu",
-    location: "Londres, UK",
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    success: false,
-  },
-]
-
 export default function SecurityPage() {
-  const { user } = useApp()
+  const { user, loading } = useAuth()
 
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(user?.twoFactorEnabled || false)
-  const [biometricsEnabled, setBiometricsEnabled] = useState(user?.biometricsEnabled || false)
-  const [pinEnabled, setPinEnabled] = useState(user?.pinEnabled || false)
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
+  const [biometricsEnabled, setBiometricsEnabled] = useState(false)
+  const [pinEnabled, setPinEnabled] = useState(false)
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [accessLogs, setAccessLogs] = useState<AccessLog[]>([])
 
   const [showSetupTwoFactor, setShowSetupTwoFactor] = useState(false)
   const [showSetupPin, setShowSetupPin] = useState(false)
@@ -147,6 +85,7 @@ export default function SecurityPage() {
   const [pin, setPin] = useState("")
   const [confirmPin, setConfirmPin] = useState("")
   const [showPin, setShowPin] = useState(false)
+  const [twoFactorSecret, setTwoFactorSecret] = useState<string | null>(null)
 
   const handleSetupTwoFactor = () => {
     if (otpCode.length === 6) {
@@ -181,8 +120,26 @@ export default function SecurityPage() {
     }
   }
 
-  const sessions = mockSessions
-  const accessLogs = mockAccessLogs
+  useEffect(() => {
+    const safeUser = user ?? null
+    setTwoFactorEnabled(Boolean((safeUser as { twoFactorEnabled?: boolean } | null)?.twoFactorEnabled))
+    setBiometricsEnabled(Boolean((safeUser as { biometricsEnabled?: boolean } | null)?.biometricsEnabled))
+    setPinEnabled(Boolean((safeUser as { pinEnabled?: boolean } | null)?.pinEnabled))
+  }, [user])
+
+  useEffect(() => {
+    if (!user) {
+      setSessions([])
+      setAccessLogs([])
+      setTwoFactorSecret(null)
+      return
+    }
+    setSessions([])
+    setAccessLogs([])
+    setTwoFactorSecret(null)
+  }, [user])
+
+  if (loading) return <p>Loading...</p>
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -305,47 +262,51 @@ export default function SecurityPage() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
-            {sessions.map(session => (
-              <div
-                key={session.id}
-                className={cn(
-                  "flex items-center justify-between rounded-lg border p-3",
-                  session.isCurrent ? "border-primary bg-primary/5" : "border-border"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <Monitor className="h-8 w-8 text-muted-foreground" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{session.device}</p>
-                      {session.isCurrent && (
-                        <Badge variant="secondary" className="text-xs">Actuel</Badge>
-                      )}
+            {sessions.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">Aucune session active</p>
+            ) : (
+              sessions.map(session => (
+                <div
+                  key={session.id}
+                  className={cn(
+                    "flex items-center justify-between rounded-lg border p-3",
+                    session.isCurrent ? "border-primary bg-primary/5" : "border-border"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <Monitor className="h-8 w-8 text-muted-foreground" />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{session.device}</p>
+                        {session.isCurrent && (
+                          <Badge variant="secondary" className="text-xs">Actuel</Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{session.browser}</span>
+                        <span>•</span>
+                        <MapPin className="h-3 w-3" />
+                        <span>{session.location}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        <Clock className="mr-1 inline h-3 w-3" />
+                        {session.isCurrent ? "Maintenant" : formatDate(session.lastActive)}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{session.browser}</span>
-                      <span>•</span>
-                      <MapPin className="h-3 w-3" />
-                      <span>{session.location}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      <Clock className="mr-1 inline h-3 w-3" />
-                      {session.isCurrent ? "Maintenant" : formatDate(session.lastActive)}
-                    </p>
                   </div>
+                  {!session.isCurrent && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowRevokeSession(session.id)}
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <LogOut className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
-                {!session.isCurrent && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowRevokeSession(session.id)}
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <LogOut className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
 
@@ -357,39 +318,43 @@ export default function SecurityPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {accessLogs.map(log => (
-                <div
-                  key={log.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-full",
-                      log.success ? "bg-green-100 dark:bg-green-900/30" : "bg-destructive/10"
-                    )}>
-                      {log.success ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <AlertTriangle className="h-4 w-4 text-destructive" />
-                      )}
-                    </div>
-                    <div>
-                      <p className={cn("font-medium", !log.success && "text-destructive")}>
-                        {log.action}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{log.device}</span>
-                        <span>•</span>
-                        <MapPin className="h-3 w-3" />
-                        <span>{log.location}</span>
+              {accessLogs.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">Aucun historique disponible</p>
+              ) : (
+                accessLogs.map(log => (
+                  <div
+                    key={log.id}
+                    className="flex items-center justify-between rounded-lg border border-border p-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-full",
+                        log.success ? "bg-green-100 dark:bg-green-900/30" : "bg-destructive/10"
+                      )}>
+                        {log.success ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 text-destructive" />
+                        )}
+                      </div>
+                      <div>
+                        <p className={cn("font-medium", !log.success && "text-destructive")}>
+                          {log.action}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{log.device}</span>
+                          <span>•</span>
+                          <MapPin className="h-3 w-3" />
+                          <span>{log.location}</span>
+                        </div>
                       </div>
                     </div>
+                    <p className="text-sm text-muted-foreground">
+                      {formatDate(log.timestamp)}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {formatDate(log.timestamp)}
-                  </p>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
@@ -415,7 +380,7 @@ export default function SecurityPage() {
                 Ou entrez ce code manuellement :
               </p>
               <code className="mt-2 inline-block rounded bg-muted px-4 py-2 font-mono text-sm">
-                ABCD-EFGH-IJKL-MNOP
+                {twoFactorSecret ?? "Code non disponible"}
               </code>
             </div>
 

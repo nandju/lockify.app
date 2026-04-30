@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { 
   Bell, 
@@ -13,8 +14,18 @@ import {
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { useApp, formatDate } from "@/lib/context"
+import { formatDate } from "@/lib/context"
 import { cn } from "@/lib/utils"
+
+interface Notification {
+  id: string
+  type: "expiration" | "share" | "security" | "system"
+  title: string
+  message: string
+  documentId?: string
+  isRead: boolean
+  createdAt: Date
+}
 
 const getNotificationIcon = (type: string) => {
   switch (type) {
@@ -30,9 +41,19 @@ const getNotificationIcon = (type: string) => {
 }
 
 export default function NotificationsPage() {
-  const { notifications, markNotificationRead, markAllNotificationsRead } = useApp()
+  const [notifications, setNotifications] = useState<Notification[]>([])
 
   const unreadCount = notifications.filter(n => !n.isRead).length
+
+  const markNotificationRead = (id: string) => {
+    setNotifications(prev => 
+      prev.map(n => n.id === id ? { ...n, isRead: true } : n)
+    )
+  }
+
+  const markAllNotificationsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
+  }
 
   return (
     <div className="container mx-auto px-4 py-6">

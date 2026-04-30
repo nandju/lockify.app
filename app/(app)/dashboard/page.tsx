@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { 
   FileText, 
@@ -18,19 +19,52 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { useApp, formatFileSize, formatDate, getCategoryLabel, getCategoryColor, daysUntilExpiration } from "@/lib/context"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/hooks/useAuth"
+import { useDocuments } from "@/hooks/useDocuments"
 
 export default function DashboardPage() {
-  const { user, documents, shares } = useApp()
+  const { shares } = useApp()
+  const { user, loading: authLoading } = useAuth()
+  const {
+    documents,
+    fetchDocuments,
+    loading: documentsLoading,
+  } = useDocuments()
+  const safeDocuments = documents ?? []
+  const safeUser = user ?? null
 
-  const recentDocuments = documents.slice(0, 4)
-  const favoriteDocuments = documents.filter(d => d.isFavorite).slice(0, 3)
-  const expiringDocuments = documents
+  const [totalDocuments, setTotalDocuments] = useState(0)
+  const [storageUsed, setStorageUsed] = useState(0)
+  const [activeShares, setActiveShares] = useState(0)
+
+  useEffect(() => {
+    if (!user?.id) return
+    void fetchDocuments(user.id)
+  }, [fetchDocuments, user?.id])
+
+  useEffect(() => {
+    setTotalDocuments(safeDocuments.length)
+  }, [safeDocuments])
+
+  useEffect(() => {
+    setStorageUsed(safeUser?.storageUsed ?? 0)
+  }, [safeUser])
+
+  useEffect(() => {
+    setActiveShares((shares ?? []).filter(s => s.isActive).length)
+  }, [shares])
+
+  const recentDocuments = safeDocuments.slice(0, 4)
+  const favoriteDocuments = safeDocuments.filter(d => d.isFavorite).slice(0, 3)
+  const expiringDocuments = safeDocuments
     .filter(d => d.expiresAt && daysUntilExpiration(d.expiresAt) <= 30 && daysUntilExpiration(d.expiresAt) > 0)
     .sort((a, b) => daysUntilExpiration(a.expiresAt!) - daysUntilExpiration(b.expiresAt!))
     .slice(0, 3)
-  const activeShares = shares.filter(s => s.isActive).slice(0, 3)
+  const activeSharesList = (shares ?? []).filter(s => s.isActive).slice(0, 3)
 
-  const storageUsedPercent = user ? (user.storageUsed / user.storageLimit) * 100 : 0
+  const storageUsedPercent = safeUser ? (storageUsed / (safeUser.storageLimit || 1)) * 100 : 0
+
+  if (authLoading || documentsLoading) return <p>Loading...</p>
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -38,7 +72,7 @@ export default function DashboardPage() {
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground md:text-3xl">
-            Bonjour, {user?.name?.split(" ")[0]}
+            Bonjour, {(safeUser ?? null)?.name?.split(" ")[0]}
           </h1>
           <p className="text-muted-foreground">
             Bienvenue sur votre espace sécurisé
@@ -60,7 +94,7 @@ export default function DashboardPage() {
               <FileText className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{documents.length}</p>
+              <p className="text-2xl font-bold">{totalDocuments || 0}</p>
               <p className="text-sm text-muted-foreground">Documents</p>
             </div>
           </CardContent>
@@ -72,7 +106,7 @@ export default function DashboardPage() {
               <Share2 className="h-6 w-6 text-accent" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{activeShares.length}</p>
+              <p className="text-2xl font-bold">{activeShares || 0}</p>
               <p className="text-sm text-muted-foreground">Partages actifs</p>
             </div>
           </CardContent>
@@ -114,7 +148,7 @@ export default function DashboardPage() {
               <div className="mb-2 flex items-center justify-between">
                 <p className="font-medium">Espace de stockage</p>
                 <p className="text-sm text-muted-foreground">
-                  {formatFileSize(user?.storageUsed || 0)} / {formatFileSize(user?.storageLimit || 0)}
+                  {formatFileSize(storageUsed || 0)} / {formatFileSize(safeUser?.storageLimit || 0)}
                 </p>
               </div>
               <Progress value={storageUsedPercent} className="h-2" />
@@ -270,12 +304,12 @@ export default function DashboardPage() {
             </Link>
           </CardHeader>
           <CardContent className="space-y-3">
-            {activeShares.length === 0 ? (
+            {activeSharesList.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
                 Aucun partage actif
               </p>
             ) : (
-              activeShares.map(share => (
+              activeSharesList.map(share => (
                 <div
                   key={share.id}
                   className="flex items-center gap-3 rounded-lg border border-border p-3"
